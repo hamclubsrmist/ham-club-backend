@@ -1,4 +1,5 @@
 const Team = require("../models/Team");
+const { uploadImageBuffer } = require("../utils/cloudinary");
 
 // ==========================================
 // GENERATE NEXT MEMBER ID
@@ -30,7 +31,6 @@ const generateMemberId = async () => {
     return `${prefix}${nextNumber}`;
 };
 
-
 // ==========================================
 // GET ALL TEAM MEMBERS
 // PUBLIC
@@ -44,7 +44,6 @@ const getTeam = async (req, res) => {
             count: team.length,
             team: team
         });
-
     } catch (error) {
         console.error("Get Team Error:", error);
 
@@ -55,7 +54,6 @@ const getTeam = async (req, res) => {
         });
     }
 };
-
 
 // ==========================================
 // GET SINGLE TEAM MEMBER
@@ -76,7 +74,6 @@ const getTeamMemberById = async (req, res) => {
             success: true,
             member: member
         });
-
     } catch (error) {
         console.error("Get Team Member Error:", error);
 
@@ -87,45 +84,39 @@ const getTeamMemberById = async (req, res) => {
         });
     }
 };
+
 // ==========================================
 // GET MEMBER BY MEMBER ID
 // Example: HAM26-001
 // PUBLIC PROFILE
 // ==========================================
 const getMemberByMemberId = async (req, res) => {
-
     try {
-
         const member = await Team.findOne({
             memberId: req.params.memberId
         });
 
         if (!member) {
-
             return res.status(404).json({
                 success: false,
                 message: "Member not found"
             });
-
         }
 
         res.status(200).json({
             success: true,
             member: member
         });
-
     } catch (error) {
+        console.error("Get Member By Member ID Error:", error);
 
         res.status(500).json({
             success: false,
             message: "Failed to fetch member",
             error: error.message
         });
-
     }
-
 };
-
 
 // ==========================================
 // CREATE TEAM MEMBER
@@ -133,8 +124,6 @@ const getMemberByMemberId = async (req, res) => {
 // ==========================================
 const createTeamMember = async (req, res) => {
     try {
-
-        // Automatically generate Member ID
         const memberId = await generateMemberId();
 
         const memberData = {
@@ -142,9 +131,14 @@ const createTeamMember = async (req, res) => {
             memberId: memberId
         };
 
-        // If photo is uploaded
+        // Upload the image directly to Cloudinary.
         if (req.file) {
-            memberData.image = `/uploads/${req.file.filename}`;
+            const uploadedImage = await uploadImageBuffer(
+                req.file.buffer,
+                req.file.originalname
+            );
+
+            memberData.image = uploadedImage.secure_url;
         }
 
         const member = await Team.create(memberData);
@@ -154,7 +148,6 @@ const createTeamMember = async (req, res) => {
             message: "Team member created successfully",
             member: member
         });
-
     } catch (error) {
         console.error("Create Team Member Error:", error);
 
@@ -166,14 +159,12 @@ const createTeamMember = async (req, res) => {
     }
 };
 
-
 // ==========================================
 // UPDATE TEAM MEMBER
 // ADMIN ONLY
 // ==========================================
 const updateTeamMember = async (req, res) => {
     try {
-
         const existingMember = await Team.findById(req.params.id);
 
         if (!existingMember) {
@@ -187,22 +178,22 @@ const updateTeamMember = async (req, res) => {
             ...req.body
         };
 
-        // ======================================
-        // EXISTING MEMBER WITHOUT MEMBER ID
-        // Give it an automatic ID
-        // ======================================
+        // Never change an existing Member ID.
         if (!existingMember.memberId) {
             updateData.memberId = await generateMemberId();
         } else {
-            // Never change the existing Member ID
             updateData.memberId = existingMember.memberId;
         }
 
-        // ======================================
-        // NEW PHOTO UPLOADED
-        // ======================================
+        // Only replace the image when a new photo is selected.
+        // If no new photo is uploaded, keep the existing image URL.
         if (req.file) {
-            updateData.image = `/uploads/${req.file.filename}`;
+            const uploadedImage = await uploadImageBuffer(
+                req.file.buffer,
+                req.file.originalname
+            );
+
+            updateData.image = uploadedImage.secure_url;
         }
 
         const member = await Team.findByIdAndUpdate(
@@ -219,7 +210,6 @@ const updateTeamMember = async (req, res) => {
             message: "Team member updated successfully",
             member: member
         });
-
     } catch (error) {
         console.error("Update Team Member Error:", error);
 
@@ -231,14 +221,12 @@ const updateTeamMember = async (req, res) => {
     }
 };
 
-
 // ==========================================
 // DELETE TEAM MEMBER
 // ADMIN ONLY
 // ==========================================
 const deleteTeamMember = async (req, res) => {
     try {
-
         const member = await Team.findByIdAndDelete(req.params.id);
 
         if (!member) {
@@ -252,7 +240,6 @@ const deleteTeamMember = async (req, res) => {
             success: true,
             message: "Team member deleted successfully"
         });
-
     } catch (error) {
         console.error("Delete Team Member Error:", error);
 
@@ -264,10 +251,6 @@ const deleteTeamMember = async (req, res) => {
     }
 };
 
-
-// ==========================================
-// EXPORT CONTROLLERS
-// ==========================================
 module.exports = {
     getTeam,
     getTeamMemberById,
