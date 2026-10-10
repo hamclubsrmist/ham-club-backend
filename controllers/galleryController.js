@@ -1,9 +1,15 @@
-const Gallery = require("../models/Gallery");
 
-// Get all gallery images
+const Gallery = require("../models/Gallery");
+const path = require("path");
+
+// ========================================
+// GET ALL GALLERY PHOTOS
+// ========================================
+
 const getGallery = async (req, res) => {
     try {
-        const gallery = await Gallery.find().sort({ createdAt: -1 });
+        const gallery = await Gallery.find()
+            .sort({ createdAt: -1 });
 
         res.status(200).json({
             success: true,
@@ -12,6 +18,8 @@ const getGallery = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("Get gallery error:", error);
+
         res.status(500).json({
             success: false,
             message: "Failed to fetch gallery",
@@ -21,7 +29,10 @@ const getGallery = async (req, res) => {
 };
 
 
-// Get one gallery item
+// ========================================
+// GET ONE GALLERY PHOTO
+// ========================================
+
 const getGalleryById = async (req, res) => {
     try {
         const item = await Gallery.findById(req.params.id);
@@ -29,7 +40,7 @@ const getGalleryById = async (req, res) => {
         if (!item) {
             return res.status(404).json({
                 success: false,
-                message: "Gallery item not found"
+                message: "Gallery photo not found"
             });
         }
 
@@ -39,60 +50,107 @@ const getGalleryById = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("Get gallery photo error:", error);
+
         res.status(500).json({
             success: false,
-            message: "Failed to fetch gallery item",
+            message: "Failed to fetch gallery photo",
             error: error.message
         });
     }
 };
 
 
-// Upload gallery image - Admin only
+// ========================================
+// UPLOAD ONE GALLERY PHOTO
+// ========================================
+
 const createGallery = async (req, res) => {
     try {
+
+        // Check whether Multer received a file
         if (!req.file) {
             return res.status(400).json({
                 success: false,
-                message: "Please upload an image"
+                message:
+                    'No image received. Use the file field name "image".'
             });
         }
 
-        const {
-            title,
-            description,
-            event
-        } = req.body;
+        // Verify the uploaded filename
+        if (!req.file.filename) {
+            console.error("Uploaded file details:", req.file);
 
+            return res.status(400).json({
+                success: false,
+                message:
+                    "The uploaded image has no filename. Check uploadMiddleware.js."
+            });
+        }
+
+        // Read form fields
+        const title = (req.body.title || "").trim();
+        const description = (req.body.description || "").trim();
+        const eventName = (req.body.event || "").trim();
+
+        // Validate required fields
+        if (!title || !eventName) {
+            return res.status(400).json({
+                success: false,
+                message: "Title and event name are required."
+            });
+        }
+
+        // Build the saved image path
+        const filename = path.basename(req.file.filename);
+        const imagePath = `/uploads/${filename}`;
+
+        // Save the photo details in MongoDB
         const gallery = await Gallery.create({
             title,
             description,
-            event,
-            image: `/uploads/${req.file.filename}`
+            event: eventName,
+            image: imagePath
         });
 
+        console.log("Gallery photo saved:", {
+            id: gallery._id,
+            event: gallery.event,
+            image: gallery.image
+        });
+
+        // Send the saved record to the frontend
         res.status(201).json({
             success: true,
-            message: "Gallery image uploaded successfully",
+            message: "Gallery photo uploaded successfully.",
             gallery
         });
 
     } catch (error) {
+        console.error("Create gallery error:", error);
+
         res.status(500).json({
             success: false,
-            message: "Failed to upload gallery image",
+            message: "Failed to upload gallery photo.",
             error: error.message
         });
     }
 };
 
 
-// Update gallery information - Admin only
+// ========================================
+// UPDATE GALLERY PHOTO DETAILS
+// ========================================
+
 const updateGallery = async (req, res) => {
     try {
         const item = await Gallery.findByIdAndUpdate(
             req.params.id,
-            req.body,
+            {
+                title: req.body.title,
+                description: req.body.description,
+                event: req.body.event
+            },
             {
                 new: true,
                 runValidators: true
@@ -102,52 +160,65 @@ const updateGallery = async (req, res) => {
         if (!item) {
             return res.status(404).json({
                 success: false,
-                message: "Gallery item not found"
+                message: "Gallery photo not found."
             });
         }
 
         res.status(200).json({
             success: true,
-            message: "Gallery item updated successfully",
+            message: "Gallery details updated successfully.",
             item
         });
 
     } catch (error) {
+        console.error("Update gallery error:", error);
+
         res.status(500).json({
             success: false,
-            message: "Failed to update gallery item",
+            message: "Failed to update gallery details.",
             error: error.message
         });
     }
 };
 
 
-// Delete gallery image - Admin only
+// ========================================
+// DELETE ONE GALLERY PHOTO
+// ========================================
+
 const deleteGallery = async (req, res) => {
     try {
-        const item = await Gallery.findByIdAndDelete(req.params.id);
+        const item = await Gallery.findByIdAndDelete(
+            req.params.id
+        );
 
         if (!item) {
             return res.status(404).json({
                 success: false,
-                message: "Gallery item not found"
+                message: "Gallery photo not found."
             });
         }
 
         res.status(200).json({
             success: true,
-            message: "Gallery item deleted successfully"
+            message: "Gallery photo deleted successfully."
         });
 
     } catch (error) {
+        console.error("Delete gallery error:", error);
+
         res.status(500).json({
             success: false,
-            message: "Failed to delete gallery item",
+            message: "Failed to delete gallery photo.",
             error: error.message
         });
     }
 };
 
+
+// ========================================
+// EXPORT CONTROLLER FUNCTIONS
+// ========================================
 
 module.exports = {
     getGallery,
