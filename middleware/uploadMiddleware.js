@@ -1,57 +1,23 @@
 
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
+const cloudinary = require("cloudinary").v2;
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
 
-// ========================================
-// UPLOADS DIRECTORY
-// ========================================
-
-const uploadDirectory = path.join(
-    __dirname,
-    "..",
-    "uploads"
-);
-
-// Create the directory if it does not exist
-fs.mkdirSync(uploadDirectory, {
-    recursive: true
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-
-// ========================================
-// FILE STORAGE SETTINGS
-// ========================================
-
-const storage = multer.diskStorage({
-
-    destination: (req, file, callback) => {
-        callback(null, uploadDirectory);
-    },
-
-    filename: (req, file, callback) => {
-
-        const extension = path.extname(
-            file.originalname
-        ).toLowerCase();
-
-        const uniqueName =
-            Date.now() +
-            "-" +
-            Math.round(Math.random() * 1e9) +
-            extension;
-
-        callback(null, uniqueName);
+const storage = new CloudinaryStorage({
+    cloudinary,
+    params: {
+        folder: "ham-club-gallery",
+        allowed_formats: ["jpg", "jpeg", "png", "webp"]
     }
 });
 
-
-// ========================================
-// ALLOW IMAGE FILES ONLY
-// ========================================
-
 const fileFilter = (req, file, callback) => {
-
     const allowedTypes = [
         "image/jpeg",
         "image/png",
@@ -67,21 +33,12 @@ const fileFilter = (req, file, callback) => {
     }
 };
 
-
-// ========================================
-// MULTER CONFIGURATION
-// ========================================
-
 const upload = multer({
-
-    storage: storage,
-
-    fileFilter: fileFilter,
-
+    storage,
+    fileFilter,
     limits: {
         fileSize: 5 * 1024 * 1024
     }
-
 });
 
 module.exports = upload;
